@@ -144,4 +144,3 @@ export function ProjectInvestment({ project }: ProjectInvestmentProps) {
     </div>
   )
 }
-

@@ -15,4 +15,3 @@ const Slider = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
 Slider.displayName = "Slider"
 
 export { Slider }
-

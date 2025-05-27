@@ -1,10 +1,24 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChevronLeft, Share2, Wallet, BarChart3, Users, TrendingUp, FileText, LineChart, Megaphone } from "lucide-react"
+import {
+  ChevronLeft,
+  Share2,
+  Wallet,
+  BarChart3,
+  Users,
+  TrendingUp,
+  FileText,
+  LineChart,
+  Megaphone,
+  ImageIcon,
+} from "lucide-react"
 import { ProjectInvestment } from "@/components/investment/project-investment"
+import { ImageService } from "@/lib/image-service"
 
 interface ProjectCardAnalysisProps {
   project: any
@@ -14,8 +28,15 @@ interface ProjectCardAnalysisProps {
 export default function ProjectCardAnalysis({ project, onBack }: ProjectCardAnalysisProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const [showInvestment, setShowInvestment] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   if (!project) return null
+
+  // Обработчик ошибок загрузки изображений
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    ImageService.handleImageError(e)
+    setImageError(true)
+  }
 
   return (
     <div className="w-full max-w-md mx-auto h-screen flex flex-col">
@@ -110,6 +131,28 @@ export default function ProjectCardAnalysis({ project, onBack }: ProjectCardAnal
                 </h3>
                 <p className="text-sm">{project.growthPotential || "Информация о потенциале роста отсутствует."}</p>
               </div>
+
+              <div>
+                <h3 className="text-sm font-medium flex items-center mb-3">
+                  <FileText className="h-4 w-4 mr-2 text-primary" />
+                  Превью проекта
+                </h3>
+                <div className="aspect-video bg-gray-100 rounded-md mb-3 flex items-center justify-center">
+                  {imageError ? (
+                    <div className="flex flex-col items-center justify-center">
+                      <ImageIcon className="h-10 w-10 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-500">Превью недоступно</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={ImageService.getProjectPreviewUrl(project.id, project.name) || "/placeholder.svg"}
+                      alt="Project Preview"
+                      className="rounded-md w-full h-full object-cover"
+                      onError={handleImageError}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           </TabsContent>
 
@@ -177,4 +220,3 @@ export default function ProjectCardAnalysis({ project, onBack }: ProjectCardAnal
     </div>
   )
 }
-

@@ -85,4 +85,3 @@ CREATE POLICY "Admins can manage tasks" ON tasks
   TO authenticated
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true))
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
-

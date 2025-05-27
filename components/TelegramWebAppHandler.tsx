@@ -67,4 +67,3 @@ export default function TelegramWebAppHandler() {
 
   return <div>{user ? <p>Welcome, {user.first_name}!</p> : <p>No user data available</p>}</div>
 }
-

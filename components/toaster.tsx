@@ -12,4 +12,3 @@ export function Toaster() {
     </ToastProvider>
   )
 }
-

@@ -97,4 +97,3 @@ CREATE POLICY "Users can view their referrals" ON referrals FOR SELECT
 CREATE POLICY "System can create referrals" ON referrals FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = referrer_id);
-

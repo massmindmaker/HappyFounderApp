@@ -15,4 +15,3 @@ WITH CHECK (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Users can view their own access logs" ON user_access_logs FOR SELECT
 USING (auth.uid()::text = user_id::text);
-

@@ -1,8 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useSupabaseClient } from "@supabase/auth-helpers-react"
-import { useToast } from "@/components/ui/use-toast"
+import { useEffect } from "react"
 
 declare global {
   interface Window {
@@ -20,21 +18,34 @@ declare global {
         }
         ready: () => void
         expand: () => void
+        MainButton: {
+          text: string
+          show: () => void
+          hide: () => void
+          onClick: (callback: () => void) => void
+        }
       }
     }
   }
 }
 
 export function TelegramWebAppHandler() {
-  const supabase = useSupabaseClient()
-  const { toast } = useToast()
-  const [isReady, setIsReady] = useState(false)
-
   useEffect(() => {
     const checkTelegramWebApp = () => {
       if (typeof window !== "undefined" && window.Telegram && window.Telegram.WebApp) {
-        setIsReady(true)
+        // Инициализация Telegram Web App
+        window.Telegram.WebApp.ready()
+        window.Telegram.WebApp.expand()
+
+        // Получение данных пользователя
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe.user
+        if (telegramUser) {
+          // Сохраняем данные пользователя в localStorage для использования в приложении
+          localStorage.setItem("telegramUser", JSON.stringify(telegramUser))
+          console.log("Telegram user data:", telegramUser)
+        }
       } else {
+        // Если Telegram Web App не доступен, пробуем снова через 100мс
         setTimeout(checkTelegramWebApp, 100)
       }
     }
@@ -42,45 +53,5 @@ export function TelegramWebAppHandler() {
     checkTelegramWebApp()
   }, [])
 
-  useEffect(() => {
-    const authenticateUser = async () => {
-      if (!isReady) return
-
-      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe.user
-      const referralCode = window.Telegram?.WebApp?.initDataUnsafe.start_param
-      if (telegramUser) {
-        try {
-          const response = await fetch("/api/auth/telegram", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ telegramUser, referralCode }),
-          })
-          const { token, referralLink } = await response.json()
-
-          if (token) {
-            await supabase.auth.setSession(token)
-            toast({
-              title: "Успешная авторизация",
-              description: "Вы успешно вошли в приложение",
-            })
-            localStorage.setItem("referralLink", referralLink)
-          }
-        } catch (error) {
-          console.error("Authentication error:", error)
-          toast({
-            title: "Ошибка авторизации",
-            description: "Не удалось войти в приложение. Попробуйте позже.",
-            variant: "destructive",
-          })
-        }
-      }
-    }
-
-    if (isReady) {
-      authenticateUser()
-    }
-  }, [isReady, supabase.auth, toast])
-
   return null
 }
-

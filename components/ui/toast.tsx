@@ -1,11 +1,14 @@
-"use client"
+"\"use client"
 
 import type React from "react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X } from "lucide-react"
 
-interface ToastProps {
+export type ToastActionElement = React.ReactNode
+
+export interface ToastProps {
+  id?: string
   title?: string
   description?: string
   duration?: number
@@ -70,4 +73,3 @@ export const Toast: React.FC<ToastProps> = ({ title, description, duration = 300
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>
 }
-

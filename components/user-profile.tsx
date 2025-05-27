@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChevronLeft, Wallet, Copy, ExternalLink, User, Settings, LogOut } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { useSupabaseClient } from "@supabase/auth-helpers-react"
+import { useTelegramUser } from "@/hooks/use-telegram-user"
 
 interface UserProfileProps {
   onBack: () => void
@@ -15,42 +15,25 @@ interface UserProfileProps {
 export default function UserProfile({ onBack }: UserProfileProps) {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("info")
-  const supabase = useSupabaseClient()
+  const { user, isLoading } = useTelegramUser()
   const [profile, setProfile] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [referralLink, setReferralLink] = useState("")
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      setIsLoading(true)
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (session?.user) {
-          const { data, error } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+    if (user) {
+      // Создаем базовый профиль из данных Telegram
+      setProfile({
+        username: user.username || `user_${user.id}`,
+        full_name: `${user.first_name} ${user.last_name || ""}`.trim(),
+        token_balance: 100, // Демо-значение
+        referrals_count: 0, // Демо-значение
+        referral_code: `REF${user.id}`, // Генерируем простой реферальный код
+      })
 
-          if (error) throw error
-
-          setProfile(data)
-          if (data.referral_code) {
-            setReferralLink(`https://t.me/happy_founder_bot?start=${data.referral_code}`)
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load user profile. Please try again later.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
-      }
+      // Генерируем реферальную ссылку
+      setReferralLink(`https://t.me/happy_founder_bot?start=REF${user.id}`)
     }
-
-    fetchProfile()
-  }, [supabase, toast])
+  }, [user])
 
   const handleCopyReferralLink = () => {
     navigator.clipboard.writeText(referralLink)
@@ -105,8 +88,12 @@ export default function UserProfile({ onBack }: UserProfileProps) {
               <User className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <h2 className="font-bold text-lg">@alex_web3</h2>
-              <p className="text-sm text-gray-600">Присоединился: Март 2024</p>
+              <h2 className="font-bold text-lg">
+                {profile?.username ? `@${profile.username}` : profile?.full_name || "Пользователь"}
+              </h2>
+              <p className="text-sm text-gray-600">
+                Присоединился: {new Date().toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}
+              </p>
             </div>
           </div>
 
@@ -245,4 +232,3 @@ export default function UserProfile({ onBack }: UserProfileProps) {
     </div>
   )
 }
-

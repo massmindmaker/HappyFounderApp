@@ -73,4 +73,3 @@ export default function TelegramWebAppAuth() {
 
   return <div>{user ? <p>Welcome, {user.first_name}!</p> : <p>Loading user data...</p>}</div>
 }
-

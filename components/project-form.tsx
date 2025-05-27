@@ -10,9 +10,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { ChevronLeft, Sparkles, HelpCircle } from "lucide-react"
+import { ChevronLeft, Sparkles, HelpCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { Slider } from "@/components/ui/slider"
+import { AIOrchestration } from "@/lib/ai-orchestration"
+import { ProjectService } from "@/lib/project-service"
 
 interface ProjectFormProps {
   onSubmit: (data: any) => void
@@ -22,9 +23,10 @@ interface ProjectFormProps {
 export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
   const { toast } = useToast()
   const [formData, setFormData] = useState({
-    name: "",
+    title: "",
     description: "",
     audience: "",
+    industry: "",
     niche: "",
     budget: "",
     monetization: "",
@@ -37,6 +39,7 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
 
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 3
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -51,8 +54,8 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
     }
   }
 
-  const handleSelectChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, niche: value }))
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSwitchChange = (checked: boolean) => {
@@ -69,9 +72,10 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
     // Simulate AI auto-completion
     setTimeout(() => {
       setFormData({
-        name: "EcoMarket",
+        title: "EcoMarket",
         description: "Маркетплейс экологически чистых продуктов с системой верификации поставщиков на блокчейне",
         audience: "B2C, 25-45 лет, экологически сознательные потребители",
+        industry: "E-commerce",
         niche: "Marketplace",
         budget: "50000",
         monetization: "Комиссия с продаж, подписка для поставщиков",
@@ -86,11 +90,65 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
     }, 2000)
   }
 
+  const analyzeAndCreateProject = async () => {
+    try {
+      setIsAnalyzing(true)
+
+      toast({
+        title: "Анализ проекта",
+        description: "Запуск AI-анализа бизнес-идеи...",
+      })
+
+      // Используем AI-оркестрацию для анализа бизнес-идеи
+      const result = await AIOrchestration.analyzeBusinessIdea(
+        formData.description,
+        "user_id", // В реальном приложении здесь будет ID пользователя из Telegram
+      )
+
+      if (result.success && result.project) {
+        // Обновляем проект с дополнительными данными из формы
+        const updatedProject = {
+          ...result.project,
+          title: formData.title || result.project.title,
+          target_audience: formData.audience,
+          industry: formData.industry,
+          needMvp: formData.needMvp,
+          budget: formData.budget ? Number.parseFloat(formData.budget) : undefined,
+          monetization: formData.monetization,
+          token_symbol: generateTokenSymbol(formData.title),
+        }
+
+        // Сохраняем обновленный проект
+        ProjectService.updateProject(updatedProject)
+
+        toast({
+          title: "Проект создан",
+          description: "AI-анализ успешно завершен",
+          variant: "success",
+        })
+
+        // Передаем проект в родительский компонент
+        onSubmit(updatedProject)
+      } else {
+        throw new Error(result.message)
+      }
+    } catch (error) {
+      console.error("Error creating project:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать проект. Пожалуйста, попробуйте еще раз.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
   const nextStep = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1)
     } else {
-      onSubmit({ ...formData, ...collectionData })
+      analyzeAndCreateProject()
     }
   }
 
@@ -99,6 +157,22 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
       setCurrentStep(currentStep - 1)
     } else {
       onCancel()
+    }
+  }
+
+  // Вспомогательная функция для генерации символа токена
+  function generateTokenSymbol(projectName: string) {
+    if (!projectName) return "TKN"
+
+    // Генерация 3-4 буквенного символа токена на основе названия проекта
+    const words = projectName.split(/\s+/)
+    if (words.length >= 3) {
+      return (words[0][0] + words[1][0] + words[2][0]).toUpperCase()
+    } else if (words.length === 2) {
+      return (words[0][0] + words[1][0] + words[1][1]).toUpperCase()
+    } else {
+      const word = words[0]
+      return word.substring(0, Math.min(3, word.length)).toUpperCase()
     }
   }
 
@@ -145,26 +219,30 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Название проекта</Label>
+                <Label htmlFor="title">Название проекта</Label>
                 <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="title"
+                  name="title"
+                  value={formData.title}
                   onChange={handleChange}
                   placeholder="Например: CryptoWallet Pro"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Краткое описание (1-2 предложения)</Label>
+                <Label htmlFor="description">Описание бизнес-идеи</Label>
                 <Textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  placeholder="Опишите вашу бизнес-идею в нескольких предложениях"
-                  rows={3}
+                  placeholder="Опишите вашу бизнес-идею подробно"
+                  rows={5}
                 />
+                <p className="text-xs text-gray-500 flex items-center">
+                  <HelpCircle className="h-3 w-3 mr-1" />
+                  Чем подробнее описание, тем точнее будет AI-анализ
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -177,10 +255,6 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
                   placeholder="B2B/B2C, география, возраст, интересы"
                   rows={2}
                 />
-                <p className="text-xs text-gray-500 flex items-center">
-                  <HelpCircle className="h-3 w-3 mr-1" />
-                  Укажите как можно более конкретную информацию
-                </p>
               </div>
             </div>
           </motion.div>
@@ -197,8 +271,30 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
 
             <div className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="industry">Индустрия</Label>
+                <Select onValueChange={(value) => handleSelectChange("industry", value)} value={formData.industry}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите индустрию" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fintech">Финтех</SelectItem>
+                    <SelectItem value="E-commerce">Электронная коммерция</SelectItem>
+                    <SelectItem value="Healthcare">Здравоохранение</SelectItem>
+                    <SelectItem value="Education">Образование</SelectItem>
+                    <SelectItem value="Real Estate">Недвижимость</SelectItem>
+                    <SelectItem value="Entertainment">Развлечения</SelectItem>
+                    <SelectItem value="Transportation">Транспорт</SelectItem>
+                    <SelectItem value="Energy">Энергетика</SelectItem>
+                    <SelectItem value="Agriculture">Сельское хозяйство</SelectItem>
+                    <SelectItem value="Manufacturing">Производство</SelectItem>
+                    <SelectItem value="Other">Другое</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="niche">Ниша</Label>
-                <Select onValueChange={handleSelectChange} value={formData.niche}>
+                <Select onValueChange={(value) => handleSelectChange("niche", value)} value={formData.niche}>
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите нишу" />
                   </SelectTrigger>
@@ -239,28 +335,6 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
                   rows={2}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="supply">Общее количество NFT</Label>
-                <div className="flex items-center">
-                  <Input
-                    id="supply"
-                    type="number"
-                    value={collectionData.supply}
-                    onChange={(e) => handleNumberChange("supply", Number.parseInt(e.target.value))}
-                    min={1}
-                    max={10000}
-                    className="w-24 mr-4"
-                  />
-                  <Slider
-                    value={[collectionData.supply]}
-                    min={1}
-                    max={10000}
-                    step={1}
-                    onValueChange={(value) => handleNumberChange("supply", value[0])}
-                    className="flex-1"
-                  />
-                </div>
-              </div>
             </div>
           </motion.div>
         )}
@@ -290,6 +364,7 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
                   <li>Анализ конкурентов и рынка</li>
                   <li>Финансовая модель</li>
                   <li>Маркетинг-план</li>
+                  <li>Токеномика</li>
                   <li>Pitch Deck (PDF)</li>
                   {formData.needMvp && <li>MVP (прототип)</li>}
                 </ul>
@@ -300,19 +375,27 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
                 <div className="space-y-2 text-sm">
                   <div className="flex">
                     <span className="text-gray-500 w-1/3">Название:</span>
-                    <span className="font-medium">{formData.name || "Не указано"}</span>
+                    <span className="font-medium">{formData.title || "Не указано"}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-gray-500 w-1/3">Индустрия:</span>
+                    <span className="font-medium">{formData.industry || "Не указана"}</span>
                   </div>
                   <div className="flex">
                     <span className="text-gray-500 w-1/3">Ниша:</span>
-                    <span className="font-medium">{formData.niche || "Не указано"}</span>
+                    <span className="font-medium">{formData.niche || "Не указана"}</span>
                   </div>
                   <div className="flex">
                     <span className="text-gray-500 w-1/3">Аудитория:</span>
-                    <span className="font-medium">{formData.audience || "Не указано"}</span>
+                    <span className="font-medium">{formData.audience || "Не указана"}</span>
                   </div>
                   <div className="flex">
                     <span className="text-gray-500 w-1/3">Бюджет:</span>
-                    <span className="font-medium">{formData.budget ? `$${formData.budget}` : "Не указано"}</span>
+                    <span className="font-medium">{formData.budget ? `$${formData.budget}` : "Не указан"}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-gray-500 w-1/3">MVP:</span>
+                    <span className="font-medium">{formData.needMvp ? "Требуется" : "Не требуется"}</span>
                   </div>
                 </div>
               </div>
@@ -323,15 +406,23 @@ export default function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
 
       <div className="p-4 border-t">
         <div className="flex space-x-3">
-          <Button variant="outline" onClick={prevStep} className="flex-1">
+          <Button variant="outline" onClick={prevStep} className="flex-1" disabled={isAnalyzing}>
             {currentStep === 1 ? "Отмена" : "Назад"}
           </Button>
-          <Button onClick={nextStep} className="flex-1">
-            {currentStep === totalSteps ? "Создать проект" : "Далее"}
+          <Button onClick={nextStep} className="flex-1" disabled={isAnalyzing}>
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Анализ...
+              </>
+            ) : currentStep === totalSteps ? (
+              "Создать проект"
+            ) : (
+              "Далее"
+            )}
           </Button>
         </div>
       </div>
     </div>
   )
 }
-

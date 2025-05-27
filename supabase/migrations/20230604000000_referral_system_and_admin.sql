@@ -84,4 +84,3 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 UPDATE profiles
 SET is_admin = true
 WHERE username = 'b0brov';
-

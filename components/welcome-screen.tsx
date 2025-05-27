@@ -129,4 +129,3 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
     </div>
   )
 }
-
