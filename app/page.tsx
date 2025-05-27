@@ -13,7 +13,7 @@ import { Toaster } from "@/components/toaster"
 import { TelegramWebAppHandler } from "@/components/telegram-web-app-handler"
 
 export default function Home() {
-  const [currentScreen, setCurrentScreen] = useState("main")
+  const [currentScreen, setCurrentScreen] = useState("welcome")
   const [walletConnected, setWalletConnected] = useState(false)
   const [currentProject, setCurrentProject] = useState(null)
 
@@ -24,7 +24,7 @@ export default function Home() {
   const handleWalletConnection = (success: boolean) => {
     setWalletConnected(success)
     if (success) {
-      setCurrentScreen("main")
+      setCurrentScreen("demo")
     }
   }
 

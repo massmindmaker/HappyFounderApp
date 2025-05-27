@@ -19,15 +19,11 @@ import {
   Clock,
   ChevronRight,
   Shield,
-  Database,
 } from "lucide-react"
 import ProjectCardAnalysis from "./project-card-analysis"
 import TasksDashboard from "./admin/tasks-dashboard"
+import { useSupabaseClient } from "@supabase/auth-helpers-react"
 import { useToast } from "@/components/ui/use-toast"
-import { getSupabaseClient } from "@/lib/supabase-client-simple"
-import PortfolioChart from "./portfolio-chart"
-import { ProjectService } from "@/lib/project-service"
-import { Progress } from "@/components/ui/progress"
 
 interface MainScreenProps {
   onCreateProject: () => void
@@ -47,28 +43,21 @@ export default function MainScreen({
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [referralLink, setReferralLink] = useState("")
+  const supabase = useSupabaseClient()
   const { toast } = useToast()
-  const [projects, setProjects] = useState<any[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isMigrating, setIsMigrating] = useState(false)
-  const [migrationProgress, setMigrationProgress] = useState(0)
 
   useEffect(() => {
     const checkAdminStatus = async () => {
       setIsLoading(true)
       try {
-        const supabase = getSupabaseClient()
-        if (!supabase) return
-
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession()
         if (sessionError) throw sessionError
 
-        if (sessionData?.session?.user) {
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("is_admin")
-            .eq("id", sessionData.session.user.id)
-            .single()
+        if (session?.user) {
+          const { data, error } = await supabase.from("profiles").select("is_admin").eq("id", session.user.id).single()
 
           if (error) throw error
 
@@ -86,8 +75,10 @@ export default function MainScreen({
       }
     }
 
-    checkAdminStatus()
-  }, [toast])
+    if (supabase) {
+      checkAdminStatus()
+    }
+  }, [supabase, toast])
 
   useEffect(() => {
     const storedReferralLink = localStorage.getItem("referralLink")
@@ -96,28 +87,6 @@ export default function MainScreen({
     }
   }, [])
 
-  useEffect(() => {
-    // Загружаем проекты из сервиса
-    const loadProjects = async () => {
-      setIsLoading(true)
-      try {
-        const projectsData = await ProjectService.getProjects()
-        setProjects(projectsData)
-      } catch (error) {
-        console.error("Error loading projects:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load projects. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadProjects()
-  }, [toast])
-
   const handleBackToList = () => {
     setSelectedProject(null)
   }
@@ -125,6 +94,11 @@ export default function MainScreen({
   const handleOpenProject = (project: any) => {
     setSelectedProject(project)
   }
+
+  const projects = [
+    { id: 1, name: "Маркетплейс для фрилансеров", category: "Web3", date: "12.03.2024", status: "В разработке" },
+    { id: 2, name: "AI-ассистент для HR", category: "SaaS", date: "05.03.2024", status: "Завершен" },
+  ]
 
   const partnersList = [
     { id: 1, name: "@alex_web3", avatar: "/placeholder.svg?height=40&width=40" },
@@ -178,96 +152,6 @@ export default function MainScreen({
     return <div>Loading...</div>
   }
 
-  const refreshProjects = async () => {
-    try {
-      const projectsData = await ProjectService.getProjects()
-      setProjects(projectsData)
-    } catch (error) {
-      console.error("Error refreshing projects:", error)
-      toast({
-        title: "Error",
-        description: "Failed to refresh projects. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleProjectSubmit = (projectData: any) => {
-    refreshProjects() // Обновляем список проектов
-  }
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      refreshProjects()
-      return
-    }
-
-    try {
-      const results = await ProjectService.searchProjects(searchQuery)
-      setProjects(results)
-    } catch (error) {
-      console.error("Error searching projects:", error)
-      toast({
-        title: "Error",
-        description: "Failed to search projects. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleMigrateToSupabase = async () => {
-    setIsMigrating(true)
-    setMigrationProgress(0)
-
-    try {
-      // Имитация прогресса миграции
-      const interval = setInterval(() => {
-        setMigrationProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(interval)
-            return 90
-          }
-          return prev + 10
-        })
-      }, 500)
-
-      // Выполнение миграции
-      const success = await ProjectService.migrateLocalStorageToSupabase()
-
-      clearInterval(interval)
-      setMigrationProgress(100)
-
-      if (success) {
-        toast({
-          title: "Миграция завершена",
-          description: "Данные успешно перенесены в Supabase",
-          variant: "success",
-        })
-
-        // Обновляем список проектов
-        refreshProjects()
-      } else {
-        toast({
-          title: "Ошибка миграции",
-          description: "Не удалось перенести данные в Supabase",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error migrating to Supabase:", error)
-      toast({
-        title: "Ошибка миграции",
-        description: "Произошла ошибка при переносе данных в Supabase",
-        variant: "destructive",
-      })
-    } finally {
-      setTimeout(() => {
-        setIsMigrating(false)
-        setMigrationProgress(0)
-      }, 1000)
-    }
-  }
-
   return (
     <div className="w-full max-w-md mx-auto h-screen flex flex-col">
       <header className="py-4 px-4 border-b">
@@ -280,39 +164,14 @@ export default function MainScreen({
 
       {!selectedProject ? (
         <Tabs defaultValue="projects" className="flex-1 flex flex-col">
-          <div className="flex-1 overflow-y-auto p-4 pb-16">
+          <div className="flex-1 overflow-y-auto p-4">
             <TabsContent value="projects" className="mt-0">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-semibold">Мои проекты</h2>
-                <div className="flex space-x-2">
-                  <Button onClick={onCreateProject} size="sm">
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Создать
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleMigrateToSupabase} disabled={isMigrating}>
-                    <Database className="h-4 w-4 mr-2" />
-                    {isMigrating ? "Миграция..." : "В Supabase"}
-                  </Button>
-                </div>
-              </div>
-
-              {isMigrating && (
-                <div className="mb-4">
-                  <p className="text-sm text-gray-500 mb-2">Миграция данных в Supabase...</p>
-                  <Progress value={migrationProgress} className="h-2" />
-                </div>
-              )}
-
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Поиск проектов..."
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
+                <Button onClick={onCreateProject} size="sm">
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Создать
+                </Button>
               </div>
 
               {projects.length > 0 ? (
@@ -323,31 +182,20 @@ export default function MainScreen({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="bg-white rounded-lg shadow-sm p-4"
-                      onClick={() => onOpenProject(project)}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-medium">{project.title}</h3>
+                        <h3 className="font-medium">{project.name}</h3>
                         <span
                           className={`text-xs px-2 py-1 rounded-full ${
-                            project.status === "completed" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
+                            project.status === "Завершен" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
                           }`}
                         >
-                          {project.status === "draft"
-                            ? "Черновик"
-                            : project.status === "active"
-                              ? "Активен"
-                              : project.status === "funded"
-                                ? "Финансируется"
-                                : project.status === "completed"
-                                  ? "Завершен"
-                                  : project.status === "cancelled"
-                                    ? "Отменен"
-                                    : project.status}
+                          {project.status}
                         </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-500">
-                        <span>{project.industry || project.niche}</span>
-                        <span>{new Date(project.created_at).toLocaleDateString("ru-RU")}</span>
+                        <span>{project.category}</span>
+                        <span>{project.date}</span>
                       </div>
                     </motion.div>
                   ))}
@@ -365,10 +213,6 @@ export default function MainScreen({
                   </Button>
                 </div>
               )}
-
-              <div className="mt-6">
-                <PortfolioChart onViewDetails={() => setActiveTab("investments")} />
-              </div>
             </TabsContent>
 
             <TabsContent value="analysis" className="mt-0">
@@ -552,7 +396,7 @@ export default function MainScreen({
             )}
           </div>
 
-          <TabsList className="grid grid-cols-4 border-t fixed bottom-0 left-0 right-0 z-10 bg-background">
+          <TabsList className="grid grid-cols-4 border-t">
             <TabsTrigger value="projects" className="flex flex-col items-center py-2 text-xs">
               <FolderOpen className="h-5 w-5 mb-1" />
               Проекты

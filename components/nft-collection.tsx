@@ -10,9 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
-import { ChevronLeft, Plus, Trash2, ImageIcon, Upload, Sparkles } from "lucide-react"
+import { ChevronLeft, Plus, Trash2, Image, Upload, Sparkles } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { ImageService } from "@/lib/image-service"
 
 interface NFTCollectionProps {
   projectId: number
@@ -24,7 +23,6 @@ export default function NFTCollection({ projectId, onBack, onComplete }: NFTColl
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 3
-  const [imageError, setImageError] = useState(false)
 
   const [collectionData, setCollectionData] = useState({
     name: "",
@@ -153,12 +151,6 @@ export default function NFTCollection({ projectId, onBack, onComplete }: NFTColl
     } else {
       onBack()
     }
-  }
-
-  // Обработчик ошибок загрузки изображений
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    ImageService.handleImageError(e)
-    setImageError(true)
   }
 
   return (
@@ -291,7 +283,7 @@ export default function NFTCollection({ projectId, onBack, onComplete }: NFTColl
 
               <div className="p-4 bg-primary/5 rounded-lg">
                 <div className="flex items-center mb-2">
-                  <ImageIcon className="h-5 w-5 text-primary mr-2" />
+                  <Image className="h-5 w-5 text-primary mr-2" />
                   <h3 className="text-sm font-medium">Изображения NFT</h3>
                 </div>
                 <p className="text-xs text-gray-500 mb-3">
